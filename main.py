@@ -8,7 +8,6 @@ import config
 import netmiko.ssh_exception
 import openpyxl
 import pandas as pd
-import pathlib
 import requests
 import sys
 import time
@@ -202,8 +201,6 @@ def main():
         help=f"path to save report: default is {INVENTORY_PATH}",
     )
     args = parser.parse_args()
-    if " " in args.path:
-        print("True")
     header = {
         "Authorization": f"Token {args.token}"
     }
