@@ -139,12 +139,13 @@ def connect_switch(switch):
 
 def write_to_excel(report, switch, path, name):
     """Takes switch list and writes it to a csv file"""
-    print(f"\n{report}\n")
+    print(f"\n{report.to_string(index=False)}\n")
     print("*" * 25)
     print(f"\nSaving to {path}\n")
     try:
         report.to_excel(
             f"{path}\{name}-interface_{get_date()}.xlsx",
+            sheet_name=name,
             index=False,
             na_rep="-".center(1),
         )
@@ -154,6 +155,7 @@ def write_to_excel(report, switch, path, name):
         try:
             report.to_excel(
                 f"{path}\{name}-interface_{get_date()}.xlsx",
+                sheet_name=name,
                 index=False,
                 na_rep="-".center(1),
             )
