@@ -1,5 +1,5 @@
 from datetime import datetime
-from getpass import getpass
+from getpass import getpass, getuser
 from netmiko import ConnectHandler
 from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -7,7 +7,9 @@ import argparse
 import config
 import netmiko.ssh_exception
 import openpyxl
+import os
 import pandas as pd
+import platform
 import requests
 import sys
 import time
@@ -15,7 +17,6 @@ import time
 
 NETBOX = config.NETBOX
 URL = config.URL
-INVENTORY_PATH = config.INVENTORY_PATH
 
 
 def get_device(ip, header, url):
@@ -145,7 +146,7 @@ def write_to_excel(report, switch, path, name):
     print(f"\nSaving to {path}\n")
     try:
         report.to_excel(
-            f"{path}\{name}-interface_{get_date()}.xlsx",
+            f"{path}{name}-interface_{get_date()}.xlsx",
             sheet_name=name,
             index=False,
             na_rep="-".center(1),
@@ -173,17 +174,21 @@ def get_date():
 
 
 def main():
+    os_system = platform.system()
+    user = getuser()
+    if os_system == "Windows":
+        inventory_path = f"C:\\Users\\{user}\\Desktop\\"
+    else:
+        inventory_path = "~/data/"
+        if not os.path.exists(inventory_path):
+            os.makedirs(inventory_path)
     parser = argparse.ArgumentParser(
         prog="Interface statistics inventory",
         description="Pull a report of interface statistics from a switch",
     )
     parser.add_argument(
-        "-i", "--ip",
-        help="IP address of switch being checked",
-    )
-    parser.add_argument(
-        "-d", "--devices",
-        nargs="*",
+        "devices",
+        # nargs="*",
         help="List of addresses being checked"
     )
     parser.add_argument(
@@ -201,29 +206,29 @@ def main():
     parser.add_argument(
         "-u", "--url",
         default=URL,
-        help="URL of NetBox server (example: https://10.0.0.5/api/)"
+        help="URL of NetBox server (example: https://10.0.0.5/api/)",
     )
     parser.add_argument(
         "-p", "--path",
-        default=INVENTORY_PATH,
-        help=f"path to save report: default is {INVENTORY_PATH}",
+        default=inventory_path,
+        help=f"path to save report: default is {inventory_path}",
     )
     args = parser.parse_args()
     device_list = args.devices
     header = {
         "Authorization": f"Token {args.token}"
     }
-    # device_result = get_device(args.ip, header, args.url)
-    # device_details = get_device_details(device_result, header, args.url)
-    # switch_name = device_details["name"]
-    # credentials = get_credentials(args.connection.lower())
-    # if args.connection.lower() == "telnet":
-    #     device_connection = "cisco_ios_telnet"
-    # else:
-    #     device_connection = "cisco_ios"
-    # switch_dictionary = switch_prep(device_details, device_connection, credentials)
-    # interface_report = connect_switch(switch_dictionary)
-    # write_to_excel(interface_report, switch_dictionary, args.path, switch_name)
+    device_result = get_device(device_list, header, args.url)
+    device_details = get_device_details(device_result, header, args.url)
+    switch_name = device_details["name"]
+    credentials = get_credentials(args.connection.lower())
+    if args.connection.lower() == "telnet":
+        device_connection = "cisco_ios_telnet"
+    else:
+        device_connection = "cisco_ios"
+    switch_dictionary = switch_prep(device_details, device_connection, credentials)
+    interface_report = connect_switch(switch_dictionary)
+    write_to_excel(interface_report, switch_dictionary, args.path, switch_name)
 
 
 if __name__ == "__main__":
