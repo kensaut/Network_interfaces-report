@@ -31,8 +31,8 @@ def get_device(ip, header, url):
         verify=False,
     )
     device = response.json()
-    results1 = device["results"][0]
-    switch_name = results1["assigned_object"]["device"]["name"]
+    results = device["results"][0]
+    switch_name = results["assigned_object"]["device"]["name"]
     return switch_name
 
 
@@ -49,7 +49,8 @@ def get_device_details(switch_name, header, url):
         verify=False,
     )
     device = response.json()
-    return device["results"][0]
+    results = device["results"][0]
+    return results
 
 
 def get_credentials(connection):
@@ -177,8 +178,13 @@ def main():
         description="Pull a report of interface statistics from a switch",
     )
     parser.add_argument(
-        "ip",
+        "-i", "--ip",
         help="IP address of switch being checked",
+    )
+    parser.add_argument(
+        "-d", "--devices",
+        nargs="*",
+        help="List of addresses being checked"
     )
     parser.add_argument(
         "-c", "--connection",
@@ -203,20 +209,21 @@ def main():
         help=f"path to save report: default is {INVENTORY_PATH}",
     )
     args = parser.parse_args()
+    device_list = args.devices
     header = {
         "Authorization": f"Token {args.token}"
     }
-    device_result = get_device(args.ip, header, args.url)
-    device_details = get_device_details(device_result, header, args.url)
-    switch_name = device_details["name"]
-    credentials = get_credentials(args.connection.lower())
-    if args.connection.lower() == "telnet":
-        device_connection = "cisco_ios_telnet"
-    else:
-        device_connection = "cisco_ios"
-    switch_dictionary = switch_prep(device_details, device_connection, credentials)
-    interface_report = connect_switch(switch_dictionary)
-    write_to_excel(interface_report, switch_dictionary, args.path, switch_name)
+    # device_result = get_device(args.ip, header, args.url)
+    # device_details = get_device_details(device_result, header, args.url)
+    # switch_name = device_details["name"]
+    # credentials = get_credentials(args.connection.lower())
+    # if args.connection.lower() == "telnet":
+    #     device_connection = "cisco_ios_telnet"
+    # else:
+    #     device_connection = "cisco_ios"
+    # switch_dictionary = switch_prep(device_details, device_connection, credentials)
+    # interface_report = connect_switch(switch_dictionary)
+    # write_to_excel(interface_report, switch_dictionary, args.path, switch_name)
 
 
 if __name__ == "__main__":
