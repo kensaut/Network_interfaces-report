@@ -17,7 +17,6 @@ import time
 
 NETBOX = config.NETBOX
 URL = config.URL
-INVENTORY_PATH = config.INVENTORY_PATH
 
 
 def get_device(ip, header, url):
@@ -193,7 +192,8 @@ def main():
         "-c", "--connection",
         default="ssh",
         help="""
-            Protocol used to connect to device, SSH, Telnet, etc. default is ssh
+            Protocol used to connect to device, SSH, Telnet, etc.
+            default is ssh
         """,
     )
     parser.add_argument(
@@ -224,7 +224,9 @@ def main():
         device_connection = "cisco_ios_telnet"
     else:
         device_connection = "cisco_ios"
-    switch_dictionary = switch_prep(device_details, device_connection, credentials)
+    switch_dictionary = switch_prep(
+        device_details, device_connection, credentials
+    )
     interface_report = connect_switch(switch_dictionary)
     if os_system == "Windows":
         path = args.path + "\\"
