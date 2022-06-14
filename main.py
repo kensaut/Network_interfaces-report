@@ -228,7 +228,11 @@ def main():
         device_connection = "cisco_ios"
     switch_dictionary = switch_prep(device_details, device_connection, credentials)
     interface_report = connect_switch(switch_dictionary)
-    write_to_excel(interface_report, switch_dictionary, args.path, switch_name)
+    if os_system == "Windows":
+        path = args.path + "\\"
+    else:
+        path = args.path + "/"
+    write_to_excel(interface_report, switch_dictionary, path, switch_name)
 
 
 if __name__ == "__main__":
