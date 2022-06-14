@@ -17,6 +17,7 @@ import time
 
 NETBOX = config.NETBOX
 URL = config.URL
+INVENTORY_PATH = config.INVENTORY_PATH
 
 
 def get_device(ip, header, url):
@@ -156,7 +157,7 @@ def write_to_excel(report, switch, path, name):
         time.sleep(10)
         try:
             report.to_excel(
-                f"{path}\{name}-interface_{get_date()}.xlsx",
+                f"{path}{name}-interface_{get_date()}.xlsx",
                 sheet_name=name,
                 index=False,
                 na_rep="-".center(1),
@@ -174,28 +175,25 @@ def get_date():
 
 
 def main():
-    os_system = platform.system()
     user = getuser()
+    os_system = platform.system()
     if os_system == "Windows":
         inventory_path = f"C:\\Users\\{user}\\Desktop\\"
     else:
-        inventory_path = "~/data/"
-        if not os.path.exists(inventory_path):
-            os.makedirs(inventory_path)
+        inventory_path = "~/"
     parser = argparse.ArgumentParser(
         prog="Interface statistics inventory",
         description="Pull a report of interface statistics from a switch",
     )
     parser.add_argument(
         "devices",
-        # nargs="*",
         help="List of addresses being checked"
     )
     parser.add_argument(
         "-c", "--connection",
         default="ssh",
         help="""
-            Protocol used to connect to device, SSH, Telnet, etc. defaul is ssh
+            Protocol used to connect to device, SSH, Telnet, etc. default is ssh
         """,
     )
     parser.add_argument(
