@@ -1,4 +1,5 @@
 from datetime import datetime
+from dotenv import load_dotenv
 from getpass import getpass, getuser
 from netmiko import ConnectHandler
 from pprint import pprint
@@ -174,12 +175,27 @@ def get_date():
 
 
 def main():
+    # Initiates the environment variables
+    load_dotenv()
+
+    # Environment variables to connect to NetBox and authenticate to switches
+    NETBOX = os.getenv("NETBOX")
+    HEADER = os.getenv("HEADER")
+    URL = os.getenv("URL")
+    USERNAME = os.getenv("USER")
+    PASSWORD = os.getenv("PASSWORD")
+    TELNET_PASSWORD = os.getenv("TELNET_PASSWORD")
+    SECRET = os.getenv("SECRET")
+
+    # Prepares where to save report
     user = getuser()
     os_system = platform.system()
     if os_system == "Windows":
         inventory_path = f"C:\\Users\\{user}\\Desktop\\"
     else:
         inventory_path = "~/"
+
+    # Arguments that can be passed through to the script
     parser = argparse.ArgumentParser(
         prog="Interface statistics inventory",
         description="Pull a report of interface statistics from a switch",
@@ -213,9 +229,23 @@ def main():
     )
     args = parser.parse_args()
     device_list = args.devices
+
+    # NetBox's header to authenticate
     header = {
         "Authorization": f"Token {args.token}"
     }
+
+    # Gather credentials to connect to switch
+    password = args.password
+    telnet = args.telnet
+    secret = args.secret
+    if password == "y":
+        password = getpass("Password: ")
+    if args.telnet == "y":
+        telnet = getpass("Telnet password: ")
+    if args.secret == "y":
+        secret = getpass("Secret: ")
+
     device_result = get_device(device_list, header, args.url)
     device_details = get_device_details(device_result, header, args.url)
     switch_name = device_details["name"]
