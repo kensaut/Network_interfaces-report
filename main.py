@@ -6,6 +6,7 @@ from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import argparse
 import config
+import json
 import netmiko.ssh_exception
 import openpyxl
 import os
@@ -43,7 +44,6 @@ def get_devices(url, header, netbox=True, devices=None):
             except IndexError:
                 print(f"{device} is not accounted for in NetBox\n")
             else:
-                # pprint(f"INFO: Device result: {device_result}")
                 device_list.append(devices)
         return device_list
 
@@ -87,8 +87,9 @@ def connect_switches(
     switch["username"] = username
     switch["password"] = password
     switch["device_type"] = "cisco_ios"
-    print("-" * 20)
+    print("\n" + "*" * 25 + "\n")
     print(f"Connecting to {name} - {ip}\n")
+    print("*" * 25 + "\n")
     switch.pop("name")
     try:
         connection = ConnectHandler(**switch)
@@ -110,115 +111,104 @@ def connect_switches(
             except netmiko.exceptions.NetmikoAuthenticationException:
                 print("Check credentials")
             else:
-                # print(f"INFO: Switch prompt: {connection.find_prompt()}")
-                # connection.disconnect()
-                # report = pull_report(connection, switch, ip, show)
-                # return report
                 return connection
         else:
-            # print(f"INFO: Switch prompt: {connection.find_prompt()}")
-            # connection.disconnect()
-            # report = pull_report(connection, switch, ip, show)
-            # return report
             return connection
     else:
-        # print(f"INFO: Switch prompt: {connection.find_prompt()}")
-        # connection.disconnect()
-        # report = pull_report(connection, switch, ip, show)
-        # return report
         return connection
+
 
 def pull_report(connection, show):
     """Connects to switch and runs show command to gather interfacee details"""
-    print("\nGathering interface details.\n")
-    print("*" * 25)
+    print("Gathering interface details.\n")
+    print("*" * 25 + "\n")
     # Gets hostname for printing purposes from show version command
     show_version = connection.send_command(
         "show version", use_textfsm=True,
     )
     hostname = show_version[0]["hostname"]
-    try:
+    show_vlan_one = connection.send_command(
+        "show interface vlan1", use_textfsm=True,
+    )
+    ip_split = show_vlan_one[0]["ip_address"].split("/")
+    ip = ip_split[0]
+    if show == "show interfaces":
         command = connection.send_command(
             show,
             use_textfsm=True,
         )
-    except TextFSMError:
-        print(f"{hostname} doesn't have {show} available")
-    else:
-        if show == "show interfaces":
-            interface_list = []
-            for interface in command:
-                interface_name = interface["interface"]
-                interface_description = interface["description"]
-                if interface_description == "":
-                    interface_description = "NO DESCRIPTION"
-                interface_bandwidth = interface["bandwidth"]
-                interface_link = interface["link_status"]
-                interface_protocol = interface["protocol_status"]
-                interfaces_details = {
-                        "Interface": interface_name,
-                        "Int description": interface_description,
-                        "Int bandwidth": interface_bandwidth,
-                        "Int link status": interface_link,
-                        "Int protocol status": interface_protocol,
-                }
-                interface_list.append(interfaces_details)
-            # pprint(f"INFO: Interfaces list: {interface_list}")
-            connection.disconnect()
-            report = {
-                hostname: interface_list
+        report_list = []
+        for interface in command:
+            interface_name = interface["interface"]
+            interface_description = interface["description"]
+            if interface_description == "":
+                interface_description = "NO DESCRIPTION"
+            interface_bandwidth = interface["bandwidth"]
+            interface_link = interface["link_status"]
+            interface_protocol = interface["protocol_status"]
+            interfaces_details = {
+                    "Interface": interface_name,
+                    "Int description": interface_description,
+                    "Int bandwidth": interface_bandwidth,
+                    "Int link status": interface_link,
+                    "Int protocol status": interface_protocol,
             }
-            # pprint("INFO Switch report: {}".format(switch_report))
-            # interface_df = pd.DataFrame(
-            #     data=interface_list,
-            # )
-            return report
-        elif show == "show interface switchport":
-            switchport_list = []
+            report_list.append(interfaces_details)
+        disconnect_switch(connection, hostname, ip)
+        return report_list, show, hostname
+    elif show == "show interface switchport":
+        try:
+            command = connection.send_command(
+                show,
+                use_textfsm=True,
+            )
+        except TextFSMError:
+            print(f"{hostname} doesn't have {show} available\n")
+            disconnect_switch(connection, hostname, ip)
+        else:
+            report_list = []
             for switchport in command:
                 switchport_name = switchport["interface"]
                 switchport_admin = switchport["admin_mode"]
-                switchport_trunking = switchport["trunking_vlans"]
+                switchport_access = switchport["access_vlan"]
+                switchport_trunking = str(switchport["trunking_vlans"])
                 switchport_details = {
                     "Switchport": switchport_name,
                     "Admin mode": switchport_admin,
+                    "Access": switchport_access,
                     "Trunking": switchport_trunking
                 }
-                switchport_list.append(switchport_details)
-            connection.disconnect()
-            report = {
-                hostname: switchport_list
-            }
-            return report
+                report_list.append(switchport_details)
+            disconnect_switch(connection, hostname, ip)
+            return report_list, hostname, ip
 
 
-def write_to_excel(report, path):
-    """Takes switch list and writes it to a excel file"""
-    name = report.keys()
-    df = pd.DataFrame(data=report)
-    print(f"\n{df.to_string(index=False)}\n")
+def disconnect_switch(connection, hostname, ip):
+    """Disconnects from switch and prints statements"""
+    print(f"Disconnecting from {hostname} - {ip}\n")
     print("*" * 25)
-    print(f"\nSaving to {path}\n")
-    try:
+    connection.disconnect()
+
+
+def write_to_excel(report_tuple, command, path, report):
+    """Takes switch list and writes it to a excel file"""
+    writer = pd.ExcelWriter(f"{path}{command}-{report}_{get_date()}.xlsx")
+    for report in report_tuple:
+        name = report[1]
+        ip = report[2]
+        data = report[0]
+        df = pd.DataFrame(data=data)
         df.to_excel(
-            f"{path}{name}-interface_{get_date()}.xlsx",
-            sheet_name=name,
+            writer,
+            sheet_name=f"{name}_{ip}",
             index=False,
             na_rep="-".center(1),
         )
-    except PermissionError:
-        print("File may be open. Please close.\n")
-        time.sleep(10)
-        try:
-            df.to_excel(
-                f"{path}{name}-interface_{get_date()}.xlsx",
-                sheet_name=name,
-                index=False,
-                na_rep="-".center(1),
-            )
-        except PermissionError:
-            print("File was open during program. Ending program.")
-            sys.exit()
+        print(f"{name}_{ip}\n{df.to_string(index=False)}\n")
+        print("*" * 25)
+        print(f"\nSaving to {path}\n")
+        print("*" * 25)
+        writer.save()
 
 
 def get_date():
@@ -249,7 +239,6 @@ def main():
     else:
         inventory_path = "~/"
 
-    # Arguments that can be passed through to the script
     parser = argparse.ArgumentParser(
         prog="Interface statistics inventory",
         description="Pull a report of interface statistics from a switch",
@@ -296,6 +285,10 @@ def main():
         help=f"path to save report: default is {inventory_path}",
     )
     parser.add_argument(
+        "--report",
+        help="Report name",
+    )
+    parser.add_argument(
         "--token",
         default=NETBOX,
         help="token to authenticate to NetBox",
@@ -306,7 +299,6 @@ def main():
         help="URL of NetBox server (example: https://10.0.0.5/api/)",
     )
     args = parser.parse_args()
-    print(f"INFO: Path: {args.path}")
     device_list = args.devices
 
     # NetBox's header to authenticate
@@ -320,36 +312,28 @@ def main():
     secret = args.secret
     if password == "y":
         password = getpass("Password: ")
-    if args.telnet == "y":
+    if telnet == "y":
         telnet = getpass("Telnet password: ")
-    if args.secret == "y":
+    if secret == "y":
         secret = getpass("Secret: ")
 
     # Checks for device or devices to pull reports from
     if args.devices:
-        # print(f"INFO: Devices to test: {args.devices}")
         devices_result = get_devices(
             args.url,
             header,
             netbox=False,
             devices=args.devices
         )
-        # pprint(f"INFO: All devices passed through: {devices_result}")
-        # pprint(f"INFO: Length of devices: {len(devices_result)}")
         device_list = get_switches_dictionary(devices_result, netbox=False)
-        # pprint(f"INFO: Device list not from NetBox:/n {device_list}")
-        # print(f"INFO: Length of device list not from NetBox: {len(device_list)}")
     else:
         devices_result = get_devices(args.url, header)
-        # pprint(f"INFO: All devices from NetBox: {devices_result}")
-        # pprint(f"INFO: Length of devices from NetBox: {len(devices_result)}")
         device_list = get_switches_dictionary(devices_result)
-        # pprint(f"INFO: Device list from NetBox: {device_list}")
-        # print(f"INFO: Length of device list from NetBox: {len(device_list)}")
 
     report_collection = []
     for device in device_list:
         # Connects to switches
+        ip = device["ip"]
         connection = connect_switches(
             device,
             args.user,
@@ -358,20 +342,25 @@ def main():
             secret,
             args.show,
         )
-        # pprint(f"INFO: Connection state: {connection}")
-        if connection == None:
+        if connection is None:
             pass
         else:
             report = pull_report(connection, args.show)
-            # pprint(f"INFO: Report: {report}")
-            if report == None:
+            if report is None:
                 pass
             else:
-                if os_system == "Windows":
-                    path = args.path + "\\"
-                else:
-                    path = args.path + "/"
-                # write_to_excel(report, path)
+                report_collection.append(report)
+    # pprint(f"INFO: Report collection: {report_collection}")
+        # pprint(f"INFO: Report: {report[0]}")
+        # pprint(f"INFO: Show command: {report[1]}")
+    if report_collection == []:
+        pass
+    else:
+        if os_system == "Windows":
+            path = args.path + "\\"
+        else:
+            path = args.path + "/"
+        write_to_excel(report_collection, args.show, path, args.report)
 
 
 if __name__ == "__main__":
