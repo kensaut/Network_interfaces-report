@@ -5,7 +5,6 @@ from netmiko import ConnectHandler
 from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import argparse
-import config
 import json
 import netmiko.ssh_exception
 import openpyxl
