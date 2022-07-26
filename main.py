@@ -4,6 +4,7 @@ from getpass import getpass, getuser
 from netmiko import ConnectHandler
 from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from textfsm.parser import TextFSMError
 import argparse
 import json
 import netmiko.ssh_exception
@@ -13,7 +14,6 @@ import pandas as pd
 import platform
 import requests
 import sys
-from textfsm.parser import TextFSMError
 import time
 
 
