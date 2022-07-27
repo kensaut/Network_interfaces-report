@@ -73,13 +73,7 @@ def get_switches_dictionary(device_result, netbox=True):
         return switch_list
 
 
-def connect_switches(
-        switch,
-        username,
-        password,
-        telnet,
-        secret,
-        show,):
+def connect_switches(switch, username, password, telnet, secret, show):
     """Connects to switches and runs show commands"""
     ip = switch["ip"]
     name = switch["name"]
@@ -311,7 +305,7 @@ def main():
     if secret == "y":
         secret = getpass("Secret: ")
 
-    # Checks for device or devices to pull reports from
+    # Checks if devices were entered in manually
     if args.devices:
         devices_result = get_devices(
             args.url,
@@ -320,6 +314,7 @@ def main():
             devices=args.devices
         )
         device_list = get_switches_dictionary(devices_result, netbox=False)
+    # No devices entered manually, pulls all devices from NetBox
     else:
         devices_result = get_devices(args.url, header)
         device_list = get_switches_dictionary(devices_result)
