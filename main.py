@@ -233,33 +233,29 @@ def main():
     )
     parser.add_argument(
         "-u", "--user",
-        default=USERNAME,
         help="Username to connect to switches",
     )
     parser.add_argument(
         "-p", "--password",
         nargs="?",
         const="y",
-        default=PASSWORD,
         help="Password to connect to switches",
     )
     parser.add_argument(
         "-t", "--telnet",
         nargs="?",
         const="y",
-        default=TELNET_PASSWORD,
         help="Telent password if switches connect with telnet",
     )
     parser.add_argument(
         "-s", "--secret",
         nargs="?",
         const="y",
-        default=SECRET,
         help="Secret to elevate to priveleged mode",
     )
     parser.add_argument(
         "--show",
-        choices=["show interfaces", "show interface switchport"],
+        choices=["interfaces", "interface switchport"],
         help="Show command to run on switches",
     )
     parser.add_argument(
