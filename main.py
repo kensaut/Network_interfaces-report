@@ -223,12 +223,7 @@ def main():
 
     # Environment variables to connect to NetBox and authenticate to switches
     NETBOX = os.getenv("NETBOX")
-    HEADER = os.getenv("HEADER")
     URL = os.getenv("URL")
-    USERNAME = os.getenv("USER")
-    PASSWORD = os.getenv("PASSWORD")
-    TELNET_PASSWORD = os.getenv("TELNET_PASSWORD")
-    SECRET = os.getenv("SECRET")
 
     # Prepares where to save report
     user = getuser()
