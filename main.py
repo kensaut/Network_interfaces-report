@@ -254,8 +254,8 @@ def main():
         help="Secret to elevate to priveleged mode",
     )
     parser.add_argument(
-        "--show",
-        choices=["interfaces", "interface switchport"],
+        "-c", "--command",
+        choices=["show interfaces", "show interface switchport"],
         help="Show command to run on switches",
     )
     parser.add_argument(
@@ -294,12 +294,15 @@ def main():
     password = args.password
     telnet = args.telnet
     secret = args.secret
+    report_argument = args.report
     if password == "y":
         password = getpass("Password: ")
     if telnet == "y":
         telnet = getpass("Telnet password: ")
     if secret == "y":
         secret = getpass("Secret: ")
+    if report_argument == None:
+        report_argument = device_list[0]
 
     # Checks if devices were entered in manually
     if args.devices:
@@ -325,12 +328,12 @@ def main():
             password,
             telnet,
             secret,
-            args.show,
+            args.command,
         )
         if connection is None:
             pass
         else:
-            report = pull_report(connection, args.show)
+            report = pull_report(connection, args.command)
             if report is None:
                 pass
             else:
@@ -345,7 +348,7 @@ def main():
             path = args.path + "\\"
         else:
             path = args.path + "/"
-        write_to_excel(report_collection, args.show, path, args.report)
+        write_to_excel(report_collection, args.command, path, report_argument)
 
 
 if __name__ == "__main__":
