@@ -48,6 +48,9 @@ def get_devices(url, header, netbox=True, devices=None):
 
 
 def get_switches_dictionary(device_result, netbox=True):
+    """
+        Takes results from NetBox and creates a list of dictionaries of switches
+    """
     switch_list = []
     if netbox:
         for device in device_result:
@@ -73,7 +76,7 @@ def get_switches_dictionary(device_result, netbox=True):
         return switch_list
 
 
-def connect_switches(switch, username, password, telnet, secret, show):
+def connect_switches(switch, username, password, telnet, secret, show,):
     """Connects to switches and runs show commands"""
     ip = switch["ip"]
     name = switch["name"]
@@ -294,17 +297,14 @@ def main():
     password = args.password
     telnet = args.telnet
     secret = args.secret
-    report_argument = args.report
     if password == "y":
         password = getpass("Password: ")
     if telnet == "y":
         telnet = getpass("Telnet password: ")
     if secret == "y":
         secret = getpass("Secret: ")
-    if report_argument == None:
-        report_argument = device_list[0]
 
-    # Checks if devices were entered in manually
+    # Checks for device or devices to pull reports from
     if args.devices:
         devices_result = get_devices(
             args.url,
@@ -313,7 +313,6 @@ def main():
             devices=args.devices
         )
         device_list = get_switches_dictionary(devices_result, netbox=False)
-    # No devices entered manually, pulls all devices from NetBox
     else:
         devices_result = get_devices(args.url, header)
         device_list = get_switches_dictionary(devices_result)
@@ -328,27 +327,24 @@ def main():
             password,
             telnet,
             secret,
-            args.command,
+            args.show,
         )
         if connection is None:
             pass
         else:
-            report = pull_report(connection, args.command)
+            report = pull_report(connection, args.show)
             if report is None:
                 pass
             else:
                 report_collection.append(report)
-    # pprint(f"INFO: Report collection: {report_collection}")
-        # pprint(f"INFO: Report: {report[0]}")
-        # pprint(f"INFO: Show command: {report[1]}")
-    if report_collection == []:
-        pass
-    else:
-        if os_system == "Windows":
-            path = args.path + "\\"
-        else:
-            path = args.path + "/"
-        write_to_excel(report_collection, args.command, path, report_argument)
+    # if report_collection == []:
+    #     pass
+    # else:
+    #     if os_system == "Windows":
+    #         path = args.path + "\\"
+    #     else:
+    #         path = args.path + "/"
+    #     write_to_excel(report_collection, args.show, path, args.report)
 
 
 if __name__ == "__main__":
