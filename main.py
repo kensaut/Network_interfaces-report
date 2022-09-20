@@ -76,8 +76,8 @@ def get_switches_dictionary(device_result, netbox=True):
         return switch_list
 
 
-def connect_switches(switch, username, password, telnet, secret, show,):
-    """Connects to switches and runs show commands"""
+def connect_switches(switch, username, password, telnet, secret):
+    """Connects to switches and returns connection"""
     ip = switch["ip"]
     name = switch["name"]
     switch["username"] = username
@@ -128,59 +128,142 @@ def pull_report(connection, show):
     )
     ip_split = show_vlan_one[0]["ip_address"].split("/")
     ip = ip_split[0]
-    show_interface = connection.send_command(
-        "show interface", user_textfsm=True,
+    show_ip_interface_brief = connection.send_command(
+        "show ip interface brief",
+        use_textfsm=True,
     )
-    print(f"INFO: Show interface results: {show_interface}")
-    if show == "show interfaces":
-        command = connection.send_command(
-            show,
+    # pprint(f"INFO: Show ip interface brief results: {show_ip_interface_brief}")
+    # print(f"INFO: Length of show ip int brief results: {len(show_ip_interface_brief)}")
+    # print(f"INFO: Attempt to slice list: {show_ip_interface_brief[1:]}")
+    new_show_ip_interface_brief_list = show_ip_interface_brief[1:]
+    interface_list = []
+    # switchport_list = []
+    for interface in new_show_ip_interface_brief_list:
+        interface_name = interface["intf"]
+        interface_status = interface["status"]
+        interface_protocol = interface["proto"]
+        print(f"Checking show interfaces on interface {interface_name}\n")
+        show_interfaces = connection.send_command(
+            f"show interfaces {interface_name}",
             use_textfsm=True,
         )
-        report_list = []
-        for interface in command:
-            interface_name = interface["interface"]
-            interface_description = interface["description"]
-            if interface_description == "":
-                interface_description = "NO DESCRIPTION"
-            interface_bandwidth = interface["bandwidth"]
-            interface_link = interface["link_status"]
-            interface_protocol = interface["protocol_status"]
-            interfaces_details = {
-                    "Interface": interface_name,
-                    "Int description": interface_description,
-                    "Int bandwidth": interface_bandwidth,
-                    "Int link status": interface_link,
-                    "Int protocol status": interface_protocol,
-            }
-            report_list.append(interfaces_details)
-        disconnect_switch(connection, hostname, ip)
-        return report_list, show, hostname
-    elif show == "show interface switchport":
-        try:
-            command = connection.send_command(
-                show,
-                use_textfsm=True,
-            )
-        except TextFSMError:
-            print(f"{hostname} doesn't have {show} available\n")
-            disconnect_switch(connection, hostname, ip)
-        else:
-            report_list = []
-            for switchport in command:
-                switchport_name = switchport["interface"]
-                switchport_admin = switchport["admin_mode"]
-                switchport_access = switchport["access_vlan"]
-                switchport_trunking = str(switchport["trunking_vlans"])
-                switchport_details = {
-                    "Switchport": switchport_name,
-                    "Admin mode": switchport_admin,
-                    "Access": switchport_access,
-                    "Trunking": switchport_trunking
-                }
-                report_list.append(switchport_details)
-            disconnect_switch(connection, hostname, ip)
-            return report_list, hostname, ip
+        interface_description = show_interfaces[0]["description"]
+        if interface_description == "":
+            interface_description = "NO DESCRIPTION"
+        interface_bandwidth = show_interfaces[0]["bandwidth"]
+        last_input = show_interfaces[0]["last_input"]
+        last_output = show_interfaces[0]["last_output"]
+        interfaces_details = {
+                "Interface": interface_name,
+                "Int description": interface_description,
+                "Int link status": interface_status,
+                "Int protocol status": interface_protocol,
+                "Int bandwidth": interface_bandwidth,
+                "Last input": last_input,
+                "Last output": last_output,
+        }
+        interface_list.append(interfaces_details)
+        # pprint(f"INFO: Show interfaces results: {show_interfaces}")
+        # show_interfaces_switchport = connection.send_command(
+        #     f"show interfaces {interface_name} switchport",
+        #     use_textfsm=True,
+        # )
+        # pprint(f"INFO: Show interfaces int switchport results: {show_interfaces_switchport}")
+    # pprint(interface_list)
+    show_switchport = connection.send_command(
+        f"show interfaces switchport",
+        use_textfsm=True,
+    )
+    # pprint(f"INFO: Show interfaces switchport results: {show_switchport}")
+    switchport_list = []
+    for switchport in show_switchport:
+        switchport_name = switchport["interface"]
+        switchport_admin = switchport["admin_mode"]
+        switchport_access = switchport["access_vlan"]
+        switchport_operational = switchport["mode"]
+        switchport_trunking = str(switchport["trunking_vlans"])
+        switchport_details = {
+            "Switchport": switchport_name,
+            "Admin mode": switchport_admin,
+            "Access": switchport_access,
+            "Operational mode": switchport_operational,
+            "Trunking": switchport_trunking
+        }
+        switchport_list.append(switchport_details)
+        for switchport in switchport_list:
+            for interface in interface_list:
+                interface_list.append(switchport_list)
+            # pprint(f"INFO: Interface results from details: {interface}")
+            interface["Switchport"] = switchport_name
+            interface["Admin mode"] = switchport_admin
+            interface["Operational mode"] = switchport_operational
+            interface["Access"] = switchport_access
+            interface["Trunking"] = switchport_trunking
+    print(interface_list)
+    #     report_list.append(interfaces_details)
+    # pprint(f"INFO: Report list results: {report_list}")
+    # pprint(f"INFO: Length of report list: {len(report_list)}")
+    # pprint(f"INFO: Switchport list: {switchport_list}")
+    # pprint(f"INFO: Length of switchport list: {len(switchport_list)}")
+
+        # pprint(f"INFO: Show interface switchport result: {show_interfaces_switchport}")
+        # show_mac_address_interface = connection.send_command(
+        #     f"show mac address-table interface {int_name}",
+        #     use_textfsm=True,
+        # )
+        # pprint(f"INFO: Show mac address results: {show_mac_address_interface}")
+    disconnect_switch(connection, hostname, ip)
+    return interface_list, show, hostname
+    # if show == "show interfaces":
+    #     command = connection.send_command(
+    #         show,
+    #         use_textfsm=True,
+    #     )
+    #     report_list = []
+    #     for interface in command:
+    #         interface_name = interface["interface"]
+    #         interface_description = interface["description"]
+    #         if interface_description == "":
+    #             interface_description = "NO DESCRIPTION"
+    #         interface_bandwidth = interface["bandwidth"]
+    #         interface_link = interface["link_status"]
+    #         interface_protocol = interface["protocol_status"]
+    #         interfaces_details = {
+    #                 "Interface": interface_name,
+    #                 "Int description": interface_description,
+    #                 "Int bandwidth": interface_bandwidth,
+    #                 "Int link status": interface_link,
+    #                 "Int protocol status": interface_protocol,
+    #         }
+    #         report_list.append(interfaces_details)
+    #     disconnect_switch(connection, hostname, ip)
+    #     return report_list, show, hostname
+    # elif show == "show interface switchport":
+    #     try:
+    #         command = connection.send_command(
+    #             show,
+    #             use_textfsm=True,
+    #         )
+    #         pprint(f"INFO: Show int switchport results: {command}")
+    #     except TextFSMError:
+    #         print(f"{hostname} doesn't have {show} available\n")
+    #         disconnect_switch(connection, hostname, ip)
+    #     else:
+    #         report_list = []
+    #         for switchport in command:
+    #             switchport_name = switchport["interface"]
+    #             switchport_admin = switchport["admin_mode"]
+    #             switchport_access = switchport["access_vlan"]
+    #             switchport_trunking = str(switchport["trunking_vlans"])
+    #             switchport_details = {
+    #                 "Switchport": switchport_name,
+    #                 "Admin mode": switchport_admin,
+    #                 "Access": switchport_access,
+    #                 "Trunking": switchport_trunking
+    #             }
+    #             report_list.append(switchport_details)
+    #         disconnect_switch(connection, hostname, ip)
+    #         return report_list, hostname, ip
 
 
 def disconnect_switch(connection, hostname, ip):
@@ -336,26 +419,25 @@ def main():
             password,
             telnet,
             secret,
-            args.show,
         )
         if connection is None:
             pass
         # Sends commands to switch and pulls a report together
         else:
-            report = pull_report(connection, args.show)
+            report = pull_report(connection, args.command)
             if report is None:
                 pass
             else:
                 report_collection.append(report)
     # Prints report and creates an Excel spreadsheet of the report
-    # if report_collection == []:
-    #     pass
-    # else:
-    #     if os_system == "Windows":
-    #         path = args.path + "\\"
-    #     else:
-    #         path = args.path + "/"
-    #     write_to_excel(report_collection, args.show, path, args.report)
+    if report_collection == []:
+        pass
+    else:
+        if os_system == "Windows":
+            path = args.path + "\\"
+        else:
+            path = args.path + "/"
+        write_to_excel(report_collection, args.command, path, args.report)
 
 
 if __name__ == "__main__":
