@@ -128,6 +128,10 @@ def pull_report(connection, show):
     )
     ip_split = show_vlan_one[0]["ip_address"].split("/")
     ip = ip_split[0]
+    show_interface = connection.send_command(
+        "show interface", user_textfsm=True,
+    )
+    print(f"INFO: Show interface results: {show_interface}")
     if show == "show interfaces":
         command = connection.send_command(
             show,
@@ -230,6 +234,7 @@ def main():
     else:
         inventory_path = "~/"
 
+    # Sets up arguments for program
     parser = argparse.ArgumentParser(
         prog="Interface statistics inventory",
         description="Pull a report of interface statistics from a switch",
@@ -286,6 +291,8 @@ def main():
         help="URL of NetBox server (example: https://10.0.0.5/api/)",
     )
     args = parser.parse_args()
+
+    # Creates a variable for devices using devices argument
     device_list = args.devices
 
     # NetBox's header to authenticate
@@ -293,7 +300,7 @@ def main():
         "Authorization": f"Token {args.token}"
     }
 
-    # Gather credentials to connect to switch
+    # Gathers credentials to connect to switch
     password = args.password
     telnet = args.telnet
     secret = args.secret
@@ -304,7 +311,7 @@ def main():
     if secret == "y":
         secret = getpass("Secret: ")
 
-    # Checks for device or devices to pull reports from
+    # Checks if devices argument was added and gets devices specified
     if args.devices:
         devices_result = get_devices(
             args.url,
@@ -313,10 +320,12 @@ def main():
             devices=args.devices
         )
         device_list = get_switches_dictionary(devices_result, netbox=False)
+    # Gets all devices frorm NetBox
     else:
         devices_result = get_devices(args.url, header)
         device_list = get_switches_dictionary(devices_result)
 
+    # Connects to switches from the device_list
     report_collection = []
     for device in device_list:
         # Connects to switches
@@ -331,12 +340,14 @@ def main():
         )
         if connection is None:
             pass
+        # Sends commands to switch and pulls a report together
         else:
             report = pull_report(connection, args.show)
             if report is None:
                 pass
             else:
                 report_collection.append(report)
+    # Prints report and creates an Excel spreadsheet of the report
     # if report_collection == []:
     #     pass
     # else:
