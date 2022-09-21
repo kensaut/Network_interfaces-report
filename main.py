@@ -163,12 +163,16 @@ def pull_report(connection, show):
             for switchport in command:
                 switchport_name = switchport["interface"]
                 switchport_admin = switchport["admin_mode"]
+                switchport_operational = switchport["mode"]
                 switchport_access = switchport["access_vlan"]
+                switchport_voice = switchport["voice_vlan"]
                 switchport_trunking = str(switchport["trunking_vlans"])
                 switchport_details = {
                     "Switchport": switchport_name,
                     "Admin mode": switchport_admin,
+                    "Operational": switchport_operational,
                     "Access": switchport_access,
+                    "Voice": switchport_voice,
                     "Trunking": switchport_trunking
                 }
                 report_list.append(switchport_details)
