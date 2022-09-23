@@ -156,11 +156,12 @@ def pull_report(connection, show):
                 use_textfsm=True,
             )
         except TextFSMError:
-            print(f"{hostname} doesn't have {show} available\n")
-            disconnect_switch(connection, hostname, ip)
+            print(f"{hostname} doesn't have {show} available; using alternative method\n")
+            # disconnect_switch(connection, hostname, ip)
         else:
             report_list = []
             for switchport in command:
+                pprint(f"INFO: Switchport results: {command}")
                 switchport_name = switchport["interface"]
                 switchport_admin = switchport["admin_mode"]
                 switchport_operational = switchport["mode"]
@@ -178,6 +179,60 @@ def pull_report(connection, show):
                 report_list.append(switchport_details)
             disconnect_switch(connection, hostname, ip)
             return report_list, hostname, ip
+
+
+def old_switch_switchport(connection, show):
+    """Helps with the parsing of individual interfaces"""
+    print("Gathering interface details.\n")
+    print("*" * 25 + "\n")
+    # Gets hostname for printing purposes from show version command
+    show_version = connection.send_command(
+        "show version", use_textfsm=True,
+    )
+    hostname = show_version[0]["hostname"]
+    show_vlan_one = connection.send_command(
+        "show interface vlan1", use_textfsm=True,
+    )
+    ip_split = show_vlan_one[0]["ip_address"].split("/")
+    ip = ip_split[0]
+    show_ip_interface_brief = connection.send_command(
+        "show ip interface brief",
+        use_textfsm=True,
+    )
+    sliced_show_ip_interface_brief = show_ip_interface_brief[1:]
+    # pprint(f"INFO: Sliced show ip int br results: {sliced_show_ip_interface_brief}")
+    switchport_report = []
+    for interface in sliced_show_ip_interface_brief:
+        interface_name = interface["intf"]
+        # pprint(f"INFO: Interface name results: {interface_name}")
+        show_interface_int_switchport = connection.send_command(
+            f"show interface {interface_name} switchport",
+            use_textfsm=True,
+        )
+        # pprint(f"INFO: Switchport results: {show_interface_int_switchport}")
+        if "Administrative mode: trunk" in show_interface_int_switchport:
+            # print(f"INFO: {interface} is a trunk")
+            switchport_admin = "trunk"
+        elif "Administrative mode: static access" in show_interface_int_switchport:
+            switchport_admin = "static access"
+        else:
+            # print(f"INFO: {interface} not a trunk")
+            switchport_admin = "check interface"
+        switchport_details = {
+            "Switchport": interface_name,
+            "Admin mode": switchport_admin,
+        }
+        switchport_report.append(switchport_details)
+        # pprint(f"INFO: Show interface int switchport results: {show_interface_int_switchport}")
+        # print(f"INFO: Type of show interface int switchport : {type(show_interface_int_switchport)}")
+    # for interface in switchport_report:
+    #     if "trunk" in interface:
+    #         print(interface)
+    # pprint(f"INFO: Switchport report results: {switchport_report}")
+    # print(f"Length of switchport report: {len(switchport_report)}")
+    disconnect_switch(connection, hostname, ip)
+    return switchport_report, hostname, ip
+
 
 
 def disconnect_switch(connection, hostname, ip):
@@ -339,12 +394,14 @@ def main():
         else:
             report = pull_report(connection, args.command)
             if report is None:
-                pass
+                print(f"INFO: Running report if report is None")
+                report = old_switch_switchport(connection, args.command)
+                report_collection.append(report)
             else:
                 report_collection.append(report)
-    # pprint(f"INFO: Report collection: {report_collection}")
-        # pprint(f"INFO: Report: {report[0]}")
-        # pprint(f"INFO: Show command: {report[1]}")
+
+    # Sets up path, prints report to screen, and creates an Excel spreadsheet
+    # of the report
     if report_collection == []:
         pass
     else:
