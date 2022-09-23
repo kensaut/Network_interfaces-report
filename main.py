@@ -161,7 +161,6 @@ def pull_report(connection, show):
         else:
             report_list = []
             for switchport in command:
-                pprint(f"INFO: Switchport results: {command}")
                 switchport_name = switchport["interface"]
                 switchport_admin = switchport["admin_mode"]
                 switchport_operational = switchport["mode"]
