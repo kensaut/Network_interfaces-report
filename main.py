@@ -113,8 +113,6 @@ def connect_switches(switch, username, password, telnet, secret, show):
 
 def pull_report(connection, show):
     """Connects to switch and runs show command to gather interfacee details"""
-    print("Gathering interface details.\n")
-    print("*" * 25 + "\n")
     # Gets hostname for printing purposes from show version command
     show_version = connection.send_command(
         "show version", use_textfsm=True,
@@ -126,6 +124,8 @@ def pull_report(connection, show):
     ip_split = show_vlan_one[0]["ip_address"].split("/")
     ip = ip_split[0]
     if show == "show interfaces":
+        print("Gathering interface details.\n")
+        print("*" * 25 + "\n")
         command = connection.send_command(
             show,
             use_textfsm=True,
@@ -150,6 +150,8 @@ def pull_report(connection, show):
         disconnect_switch(connection, hostname, ip)
         return report_list, show, hostname
     elif show == "show interface switchport":
+        print("Gathering interface details.\n")
+        print("*" * 25 + "\n")
         try:
             command = connection.send_command(
                 show,
@@ -182,8 +184,6 @@ def pull_report(connection, show):
 
 def old_switch_switchport(connection, show):
     """Helps with the parsing of individual interfaces"""
-    print("Gathering interface details.\n")
-    print("*" * 25 + "\n")
     # Gets hostname for printing purposes from show version command
     show_version = connection.send_command(
         "show version", use_textfsm=True,
@@ -217,21 +217,23 @@ def old_switch_switchport(connection, show):
         else:
             # print(f"INFO: {interface} not a trunk")
             switchport_admin = "check interface"
+        show_interfaces_int = connection.send_command(
+            f"show interfaces {interface_name}",
+            use_textfsm=True
+        )
+        link_status = show_interfaces_int[0]["link_status"]
+        protocol_status = show_interfaces_int[0]["protocol_status"]
+        description = show_interfaces_int[0]["description"]
         switchport_details = {
             "Switchport": interface_name,
             "Admin mode": switchport_admin,
+            "Link status": link_status,
+            "Procotol status": protocol_status,
+            "Decription": description,
         }
         switchport_report.append(switchport_details)
-        # pprint(f"INFO: Show interface int switchport results: {show_interface_int_switchport}")
-        # print(f"INFO: Type of show interface int switchport : {type(show_interface_int_switchport)}")
-    # for interface in switchport_report:
-    #     if "trunk" in interface:
-    #         print(interface)
-    # pprint(f"INFO: Switchport report results: {switchport_report}")
-    # print(f"Length of switchport report: {len(switchport_report)}")
     disconnect_switch(connection, hostname, ip)
     return switchport_report, hostname, ip
-
 
 
 def disconnect_switch(connection, hostname, ip):
@@ -393,7 +395,6 @@ def main():
         else:
             report = pull_report(connection, args.command)
             if report is None:
-                print(f"INFO: Running report if report is None")
                 report = old_switch_switchport(connection, args.command)
                 report_collection.append(report)
             else:
